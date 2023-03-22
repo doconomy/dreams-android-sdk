@@ -72,7 +72,7 @@ tasks.findAll { it.name.contains("dokka") }.forEach {
                 includes.from("module.md")
                 sourceLink {
                     localDirectory.set(file("src/main/java"))
-                    remoteUrl.set(URL("https://github.com/getdreams/dreams-android-sdk/tree/master/sdk/"))
+                    remoteUrl.set(URL("https://github.com/dreamstechnology/dreams-android-sdk/tree/master/sdk/"))
                     remoteLineSuffix.set("#L")
                 }
                 includeNonPublic.set(false)
@@ -102,7 +102,7 @@ afterEvaluate {
         repositories {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/getdreams/dreams-android-sdk")
+                url = uri("https://maven.pkg.github.com/dreamstechnology/dreams-android-sdk")
                 credentials {
                     username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
                     password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
@@ -124,7 +124,7 @@ afterEvaluate {
                 pom {
                     name = 'Dreams Android SDK'
                     description = ''
-                    url = 'https://getdreams.com/'
+                    url = 'https://dreamstechnology.com/'
 
                     licenses {
                         license {
@@ -135,7 +135,7 @@ afterEvaluate {
                     scm {
                         connection = 'scm:git:git://github.com/dreams-android-sdk.git'
                         developerConnection = 'scm:git:ssh://github.com/dreams-android-sdk.git'
-                        url = 'https://getdreams.com/'
+                        url = 'https://dreamstechnology.com/'
                     }
                 }
 
