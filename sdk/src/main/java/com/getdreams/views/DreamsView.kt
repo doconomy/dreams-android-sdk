@@ -164,10 +164,10 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             }
 
             @JavascriptInterface
-            override fun onAccountRequested(requestData: String, dream: String) {
+            override fun onAccountRequested(requestData: String) {
                 try {
                     val json = JSONTokener(requestData).nextValue() as? JSONObject?
-                    val dreamJson =  JSONTokener(dream).nextValue() as JSONObject
+                    val dreamJson = json?.getJSONObject("dream") as JSONObject
 
                     val requestId = json?.getString("requestId")
                     if (requestId != null) {
@@ -386,6 +386,15 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             webView.evaluateJavascript("accountProvisionInitiated('${jsonData}')") {
                 Log.v("Dreams", "accountProvisioned returned $it")
             }
+        }
+    }
+
+    override fun accountRequestCompleted(requestData: String, success: Boolean) {
+        if(success){
+            Log.w("Completed", "request completed")
+        }
+        else{
+            Log.w("Completed", "request rejected")
         }
     }
 

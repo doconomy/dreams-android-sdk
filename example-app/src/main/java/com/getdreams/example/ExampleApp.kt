@@ -13,6 +13,6 @@ import com.getdreams.Dreams
 class ExampleApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        Dreams.configure(Dreams.Configuration(clientId = "clientId", baseUrl = "https://getdreams.io"))
+        Dreams.configure(Dreams.Configuration(clientId = "clientId", baseUrl = "http://acme.dreams.test:3000"))
     }
 }
