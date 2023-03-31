@@ -10,8 +10,6 @@ import android.util.Log
 import com.getdreams.Credentials
 import java.util.Locale
 import com.getdreams.Result
-import com.getdreams.events.AccountRequestedResult
-import org.json.JSONObject
 
 /**
  * Interface for requests to the Dreams web app.
