@@ -10,6 +10,8 @@ import android.util.Log
 import com.getdreams.Credentials
 import java.util.Locale
 import com.getdreams.Result
+import com.getdreams.events.AccountRequestedResult
+import org.json.JSONObject
 
 /**
  * Interface for requests to the Dreams web app.
@@ -82,7 +84,8 @@ interface RequestInterface {
      * @param requestId The request id of the event that triggered the account provisioning.
      */
     fun accountProvisionInitiated(requestId: String)
-    fun accountRequestCompleted(requestData: String, success: Boolean)
+    fun accountRequestSucceeded(requestId: String)
+    fun accountRequestFailed(requestId: String, reason: String)
 
     /**
      * Instruct the web app to navigate to a [location].

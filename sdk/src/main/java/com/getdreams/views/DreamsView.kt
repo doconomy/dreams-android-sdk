@@ -389,12 +389,22 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun accountRequestCompleted(requestData: String, success: Boolean) {
-        if(success){
-            Log.w("Completed", "request completed")
+    override fun accountRequestSucceeded(requestId: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("accountRequestedSucceeded('${jsonData}')") {
+            }
         }
-        else{
-            Log.w("Completed", "request rejected")
+    }
+
+    override fun accountRequestFailed(requestId: String, reason: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+            .put("reason", reason)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("accountRequestedFailed('${jsonData}')") {
+            }
         }
     }
 
