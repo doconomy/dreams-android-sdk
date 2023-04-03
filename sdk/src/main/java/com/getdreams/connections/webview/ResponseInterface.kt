@@ -28,6 +28,11 @@ internal interface ResponseInterface {
     fun onAccountProvisionRequested(requestData: String)
 
     /**
+     * An account should be requested.
+     */
+    fun onAccountRequested(requestData: String)
+
+    /**
      * The user requested to exit Dreams.
      */
     fun onExitRequested()

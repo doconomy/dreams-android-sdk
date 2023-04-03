@@ -164,6 +164,21 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             }
 
             @JavascriptInterface
+            override fun onAccountRequested(requestData: String) {
+                try {
+                    val json = JSONTokener(requestData).nextValue() as? JSONObject?
+                    val dreamJson = json?.getJSONObject("dream") as JSONObject
+
+                    val requestId = json?.getString("requestId")
+                    if (requestId != null) {
+                        this@DreamsView.onResponse(Event.AccountRequested(requestId, dreamJson))
+                    }
+                } catch (e: JSONException) {
+                    Log.w("Dreams", "Unable to parse request data", e)
+                }
+            }
+
+            @JavascriptInterface
             override fun onExitRequested() {
                 this@DreamsView.onResponse(Event.ExitRequested)
             }
@@ -370,6 +385,25 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         GlobalScope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountProvisionInitiated('${jsonData}')") {
                 Log.v("Dreams", "accountProvisioned returned $it")
+            }
+        }
+    }
+
+    override fun accountRequestSucceeded(requestId: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("accountRequestedSucceeded('${jsonData}')") {
+            }
+        }
+    }
+
+    override fun accountRequestFailed(requestId: String, reason: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+            .put("reason", reason)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("accountRequestedFailed('${jsonData}')") {
             }
         }
     }

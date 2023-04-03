@@ -12,11 +12,12 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 30
-        versionName '0.6.0'
+        versionName '0.7.0'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
+
 
     buildTypes {
         release {
