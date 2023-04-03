@@ -30,7 +30,7 @@ Add the library to your module dependencies.
 
 ```groovy
 dependencies {
-    implementation 'com.getdreams:android-sdk:0.6.0'
+    implementation 'com.getdreams:android-sdk:0.7.0'
 }
 ```
 
