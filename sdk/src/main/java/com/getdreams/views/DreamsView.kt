@@ -20,6 +20,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
 import com.getdreams.Credentials
 import com.getdreams.Dreams
 import com.getdreams.R
@@ -204,6 +205,18 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     /**
+     * Supply a custom WebViewClient to the web view.
+     */
+    public fun setWebViewClient(client: WebViewClient) {
+        webView.webViewClient = client
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    public fun getWebViewClient(): WebViewClient? {
+        return webView.webViewClient
+    }
+
+
+    /**
      * The response from the init call.
      */
     internal data class InitResponse(val url: String, val cookies: List<String>?)
@@ -215,6 +228,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         uri: Uri,
         jsonBody: JSONObject,
         location: String?,
+        customHeaders: Map<String, String> = emptyMap(),
     ): Result<InitResponse, LaunchError> {
         val uriBuilder = uri.buildUpon()
             .appendPath("users")
@@ -234,6 +248,9 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; utf-8")
             setRequestProperty("Accept", "application/json")
+            customHeaders.forEach { (key, value) ->
+                setRequestProperty(key, value)
+            }
             doOutput = true
             doInput = false
             instanceFollowRedirects = false
@@ -289,6 +306,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         idToken: String,
         localeIdentifier: String,
         location: String?,
+        customHeaders: Map<String, String> = emptyMap(),
     ): Result<String, LaunchError> {
         val jsonBody = JSONObject()
             .put("client_id", clientId)
@@ -299,6 +317,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 Dreams.instance.baseUri,
                 jsonBody,
                 location,
+                customHeaders,
             )
         }
         return when (result) {
@@ -321,12 +340,34 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun launch(credentials: Credentials, locale: Locale, onCompletion: OnLaunchCompletion) {
+    override fun launch(credentials: Credentials, locale: Locale, headers: Map<String, String>, onCompletion: OnLaunchCompletion) {
         val languageTag = locale.toLanguageTag()
 
         GlobalScope.launch {
             when (val result =
-                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location = null)) {
+                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location = null, customHeaders = headers)) {
+                is Result.Success -> {
+                    withContext(Dispatchers.Main) {
+                        webView.loadUrl(result.value)
+                    }
+                    onCompletion.onResult(success(Unit))
+                }
+                is Result.Failure -> {
+                    onCompletion.onResult(failure(result.error))
+                }
+            }
+        }
+    }
+
+    override fun launch(credentials: Credentials, locale: Locale, onCompletion: OnLaunchCompletion) {
+        launch(credentials, locale, emptyMap(), onCompletion)
+    }
+
+    override fun launch(credentials: Credentials, locale: Locale, location: String, headers: Map<String, String>, onCompletion: OnLaunchCompletion) {
+        val languageTag = locale.toLanguageTag()
+
+        GlobalScope.launch {
+            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location, customHeaders = headers)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
                         webView.loadUrl(result.value)
@@ -341,21 +382,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     override fun launch(credentials: Credentials, locale: Locale, location: String, onCompletion: OnLaunchCompletion) {
-        val languageTag = locale.toLanguageTag()
-
-        GlobalScope.launch {
-            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location)) {
-                is Result.Success -> {
-                    withContext(Dispatchers.Main) {
-                        webView.loadUrl(result.value)
-                    }
-                    onCompletion.onResult(success(Unit))
-                }
-                is Result.Failure -> {
-                    onCompletion.onResult(failure(result.error))
-                }
-            }
-        }
+        launch(credentials, locale, location, emptyMap(), onCompletion)
     }
 
     override fun updateLocale(locale: Locale) {

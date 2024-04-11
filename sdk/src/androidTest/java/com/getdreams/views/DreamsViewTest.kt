@@ -7,12 +7,20 @@
 package com.getdreams.views
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.text.Html
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasType
+import androidx.test.espresso.web.sugar.Web
+import androidx.test.espresso.web.webdriver.DriverAtoms
+import androidx.test.espresso.web.webdriver.Locator
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
@@ -32,6 +40,8 @@ import io.mockk.verify
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -43,6 +53,7 @@ import org.hamcrest.Matchers.anything
 import org.hamcrest.Matchers.allOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -69,6 +80,8 @@ class DreamsViewTest {
                 "/index" -> MockResponse()
                     .setResponseCode(200)
                     .setBody(Buffer().readFrom(getInputStreamFromAssets("index.html")))
+                "/testAjax" -> MockResponse()
+                    .setResponseCode(200)
                 else -> MockResponse().setResponseCode(404)
             }
         }
@@ -255,6 +268,123 @@ class DreamsViewTest {
             )
         }
         confirmVerified(onLaunchCompletion)
+        server.shutdown()
+    }
+
+    @Test
+    fun customHeaders() {
+        val server = MockWebServer()
+        server.dispatcher = MockDreamsDispatcher(server)
+        server.start()
+        Dreams.configure(Dreams.Configuration("clientId", server.url("/").toString()))
+
+        val latch = CountDownLatch(1)
+
+        val launchCompletion = LaunchCompletionWithLatch()
+        val onLaunchCompletion = spyk(launchCompletion)
+
+        activityRule.scenario.onActivity {
+            val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
+            dreamsView.setWebViewClient(object : WebViewClient() {
+                // After every navigation JS needs to be injected again
+                override fun onPageStarted(
+                    view: WebView,
+                    url: String,
+                    favicon: Bitmap?
+                ) {
+                    view.evaluateJavascript(
+                        """
+                            XMLHttpRequest.prototype.origOpen = XMLHttpRequest.prototype.open;
+                            XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+                                XMLHttpRequest.prototype.origOpen.call(this, method, url, async, user, password);
+                                this.setRequestHeader("injectedHeader", "injectedValue")
+                            };""".trimIndent(),
+                        null
+                    )
+                }
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                    if (request.method == "POST") {
+                        return null
+                    }
+
+                    try {
+                        val httpClient = OkHttpClient()
+                        val mRequest = Request.Builder()
+                            .url(request.url.toString())
+                            .method(request.method, null) // body is not available here, will be stripped - that's why we inject JS
+                            .addHeader("interceptedHeader", "interceptedValue")
+                            // real implementation would apply headers from request.requestHeaders
+                            .build()
+                        request.requestHeaders
+                        val response = httpClient.newCall(mRequest).execute()
+                        return WebResourceResponse(
+                            "", // real implementation would set content-type
+                            response.header("content-encoding", "utf-8"),
+                            response.body!!.byteStream()
+                        )
+                    } catch (e: java.lang.Exception) {
+                        return null
+                    }
+                }
+            })
+
+            dreamsView.launch(
+                Credentials("id token"),
+                locale = Locale.CANADA_FRENCH,
+                headers = mapOf("launchHeader" to "launchValue"),
+                onLaunchCompletion
+            )
+            dreamsView.registerEventListener { event ->
+                when (event) {
+                    is Event.Telemetry -> {
+                        if ("content_loaded" == event.name) {
+                            latch.countDown()
+                        }
+                    }
+                    else -> {
+                    }
+                }
+            }
+        }
+        assertTrue(latch.await(5, TimeUnit.SECONDS))
+
+        // initial request (sdk)
+        val initPost = server.takeRequest()
+        assertEquals("/users/verify_token", initPost.path)
+        assertEquals("POST", initPost.method)
+        assertEquals("application/json; utf-8", initPost.getHeader("Content-Type"))
+        assertEquals("application/json", initPost.getHeader("Accept"))
+        assertEquals("launchValue", initPost.getHeader("launchHeader"))
+        val expectedBody = """{"client_id":"clientId","token":"id token","locale":"fr-CA"}"""
+        assertEquals(expectedBody, initPost.body.readUtf8())
+
+        assertTrue(launchCompletion.latch.await(5, TimeUnit.SECONDS))
+        verify { onLaunchCompletion.onResult(Result.success(Unit)) }
+        confirmVerified(onLaunchCompletion)
+
+        // initial load (web view)
+        val urlLoad = server.takeRequest()
+        assertNotNull(urlLoad)
+        assertEquals("/index", urlLoad.path)
+        assertEquals("GET", urlLoad.method)
+        assertEquals("interceptedValue", urlLoad.getHeader("interceptedHeader"))
+
+        // favicon
+        val faviconReq = server.takeRequest()
+        assertEquals("interceptedValue", faviconReq.getHeader("interceptedHeader"))
+
+        Web.onWebView()
+            .withElement(DriverAtoms.findElement(Locator.ID, "test_ajax_button"))
+            .perform(DriverAtoms.webClick())
+
+        // example ajax POST with body
+        val ajaxPost = server.takeRequest()
+        assertNotNull(ajaxPost)
+        assertEquals("/testAjax", ajaxPost.path)
+        assertEquals("POST", ajaxPost.method)
+        assertEquals("injectedValue", ajaxPost.getHeader("injectedHeader"))
+        assertEquals("Example body", ajaxPost.body.readUtf8()) // The request body is not lost
+
         server.shutdown()
     }
 

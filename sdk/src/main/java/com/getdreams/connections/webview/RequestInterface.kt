@@ -47,6 +47,25 @@ interface RequestInterface {
      *
      * @param credentials Credentials used to authenticate the user.
      * @param locale The locale to use in Dreams.
+     * @param headers Custom HTTP headers to be used with initial request.
+     * @param onCompletion Called when [launch] has completed.
+     */
+    fun launch(
+        credentials: Credentials,
+        locale: Locale,
+        headers: Map<String, String> = emptyMap(),
+        onCompletion: OnLaunchCompletion = OnLaunchCompletion {
+            if (it is Result.Failure) {
+                Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
+            }
+        }
+    )
+
+    /**
+     * Launch Dreams.
+     *
+     * @param credentials Credentials used to authenticate the user.
+     * @param locale The locale to use in Dreams.
      * @param location The location that Dreams should navigate to on a successful launch.
      * @param onCompletion Called when [launch] has completed.
      */
@@ -54,6 +73,27 @@ interface RequestInterface {
         credentials: Credentials,
         locale: Locale,
         location: String,
+        onCompletion: OnLaunchCompletion = OnLaunchCompletion {
+            if (it is Result.Failure) {
+                Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
+            }
+        }
+    )
+
+    /**
+     * Launch Dreams.
+     *
+     * @param credentials Credentials used to authenticate the user.
+     * @param locale The locale to use in Dreams.
+     * @param location The location that Dreams should navigate to on a successful launch.
+     * @param headers Custom HTTP headers to be used with initial request.
+     * @param onCompletion Called when [launch] has completed.
+     */
+    fun launch(
+        credentials: Credentials,
+        locale: Locale,
+        location: String,
+        headers: Map<String, String> = emptyMap(),
         onCompletion: OnLaunchCompletion = OnLaunchCompletion {
             if (it is Result.Failure) {
                 Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
