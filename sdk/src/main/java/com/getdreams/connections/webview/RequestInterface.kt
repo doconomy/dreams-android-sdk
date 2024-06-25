@@ -30,11 +30,13 @@ interface RequestInterface {
      *
      * @param credentials Credentials used to authenticate the user.
      * @param locale The locale to use in Dreams.
+     * @param headers Set optional HTTP headers
      * @param onCompletion Called when [launch] has completed.
      */
     fun launch(
         credentials: Credentials,
         locale: Locale,
+        headers: Map<String, String>? = null,
         onCompletion: OnLaunchCompletion = OnLaunchCompletion {
             if (it is Result.Failure) {
                 Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
@@ -47,12 +49,14 @@ interface RequestInterface {
      *
      * @param credentials Credentials used to authenticate the user.
      * @param locale The locale to use in Dreams.
+     * @param headers Set optional HTTP headers
      * @param location The location that Dreams should navigate to on a successful launch.
      * @param onCompletion Called when [launch] has completed.
      */
     fun launch(
         credentials: Credentials,
         locale: Locale,
+        headers: Map<String, String>? = null,
         location: String,
         onCompletion: OnLaunchCompletion = OnLaunchCompletion {
             if (it is Result.Failure) {

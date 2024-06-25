@@ -109,9 +109,18 @@ class MainActivity : AppCompatActivity() {
 
         val location = intent?.data?.path
         if (location.isNullOrBlank()) {
-            dreamsView.launch(Credentials("token"), Locale.ENGLISH, onLaunch)
+            dreamsView.launch(
+                credentials = Credentials("token"),
+                locale = Locale.ENGLISH,
+                onCompletion = onLaunch
+            )
         } else {
-            dreamsView.launch(Credentials("token"), Locale.ENGLISH, location, onLaunch)
+            dreamsView.launch(
+                credentials = Credentials("token"),
+                locale = Locale.ENGLISH,
+                location = location,
+                onCompletion = onLaunch
+            )
         }
 
         dreamsView.registerEventListener(listener)

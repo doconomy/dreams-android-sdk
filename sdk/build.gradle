@@ -12,7 +12,7 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 30
-        versionName '0.7.0'
+        versionName '0.8.0-rc.2'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -139,12 +139,12 @@ afterEvaluate {
                         url = 'https://dreamstechnology.com/'
                     }
                 }
-
-                signing {
-                    useGpgCmd()
-                    sign publishing.publications.release
-                }
             }
         }
+    }
+
+    signing {
+        useGpgCmd()
+        sign publishing.publications.release
     }
 }

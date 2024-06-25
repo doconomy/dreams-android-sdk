@@ -167,10 +167,10 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             override fun onAccountRequested(requestData: String) {
                 try {
                     val json = JSONTokener(requestData).nextValue() as? JSONObject?
-                    val dreamJson = json?.getJSONObject("dream") as JSONObject
+                    val dreamJson = json?.getJSONObject("dream")
 
                     val requestId = json?.getString("requestId")
-                    if (requestId != null) {
+                    if (requestId != null && dreamJson != null) {
                         this@DreamsView.onResponse(Event.AccountRequested(requestId, dreamJson))
                     }
                 } catch (e: JSONException) {
@@ -242,6 +242,8 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         return try {
             with(connection) {
                 outputStream.write(jsonBody.toString().toByteArray())
+                val okCodesStart: Int = HTTP_OK
+                val errorCodesStart: Int = HTTP_BAD_REQUEST
                 when (connection.responseCode) {
                     HTTP_MOVED_PERM, HTTP_MOVED_TEMP, HTTP_SEE_OTHER, HTTP_NOT_MODIFIED, 307, 308 -> {
                         getHeaderField("Location")?.let {
@@ -253,13 +255,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             )
                         )
                     }
-                    in HTTP_OK..299 -> {
+                    in okCodesStart..299 -> {
                         success(InitResponse(getURL().toString(), headerFields["Set-Cookie"]?.filterNotNull()))
                     }
                     422 -> {
                         failure(LaunchError.InvalidCredentials(message = "Invalid token", cause = null))
                     }
-                    in HTTP_BAD_REQUEST..499, HTTP_INTERNAL_ERROR -> {
+                    in errorCodesStart..499, HTTP_INTERNAL_ERROR -> {
                         failure(
                             LaunchError.HttpError(
                                 responseCode,
@@ -321,7 +323,19 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun launch(credentials: Credentials, locale: Locale, onCompletion: OnLaunchCompletion) {
+    private fun WebView.loadUrlWithOptionalHeaders(url: String, headers: Map<String, String>?) {
+        when (headers) {
+            null -> loadUrl(url)
+            else -> loadUrl(url, headers)
+        }
+    }
+
+    override fun launch(
+        credentials: Credentials,
+        locale: Locale,
+        headers: Map<String, String>?,
+        onCompletion: OnLaunchCompletion
+    ) {
         val languageTag = locale.toLanguageTag()
 
         GlobalScope.launch {
@@ -329,7 +343,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location = null)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
-                        webView.loadUrl(result.value)
+                        webView.loadUrlWithOptionalHeaders(result.value, headers)
                     }
                     onCompletion.onResult(success(Unit))
                 }
@@ -340,14 +354,20 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun launch(credentials: Credentials, locale: Locale, location: String, onCompletion: OnLaunchCompletion) {
+    override fun launch(
+        credentials: Credentials,
+        locale: Locale,
+        headers: Map<String, String>?,
+        location: String,
+        onCompletion: OnLaunchCompletion
+    ) {
         val languageTag = locale.toLanguageTag()
 
         GlobalScope.launch {
             when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
-                        webView.loadUrl(result.value)
+                        webView.loadUrlWithOptionalHeaders(result.value, headers)
                     }
                     onCompletion.onResult(success(Unit))
                 }
