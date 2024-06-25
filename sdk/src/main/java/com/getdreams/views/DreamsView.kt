@@ -35,6 +35,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -75,6 +79,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     private val webView: WebView
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
+    private var headers: Map<String, String>? = null
 
     /**
      * Add and setup the web view.
@@ -117,6 +122,33 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                headers?.let { headers ->
+                    return try {
+                        val url = request.url.toString()
+                        val httpClient = OkHttpClient()
+                        // build headers
+                        val headersBuilder = Headers.Builder()
+                        request.requestHeaders.forEach { headersBuilder.add(it.key, it.value) }
+                        headers.forEach {
+                            headersBuilder.removeAll(it.key)
+                            headersBuilder.add(it.key, it.value)
+                        }
+                        // build new request
+                        val modifiedRequest: Request = Request.Builder()
+                            .url(url.trim())
+                            .headers(headersBuilder.build())
+                            .build()
+                        val response: Response = httpClient.newCall(modifiedRequest).execute()
+                        // provide response in web format
+                        return WebResourceResponse(
+                            response.body?.contentType()?.toString(),
+                            response.header("content-encoding", "utf-8"),
+                            response.body?.byteStream()
+                        )
+                    } catch (e: java.lang.Exception) {
+                        null
+                    }
+                }
                 return null
             }
         }
@@ -324,6 +356,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     private fun WebView.loadUrlWithOptionalHeaders(url: String, headers: Map<String, String>?) {
+        this@DreamsView.headers = headers
         when (headers) {
             null -> loadUrl(url)
             else -> loadUrl(url, headers)
@@ -376,6 +409,10 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 }
             }
         }
+    }
+
+    override fun update(headers: Map<String, String>?) {
+        this.headers = headers
     }
 
     override fun updateLocale(locale: Locale) {

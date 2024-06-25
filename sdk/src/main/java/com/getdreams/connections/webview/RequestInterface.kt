@@ -73,6 +73,12 @@ interface RequestInterface {
     fun updateLocale(locale: Locale)
 
     /**
+     * This method can be called at all times after the WebView is presented, the Request interface will send the headers with every request.
+     * @param headers Set optional HTTP headers
+     */
+    fun update(headers: Map<String, String>?)
+
+    /**
      * Update the id token.
      *
      * @param requestId The request id of the event that informed that the token was expired.
