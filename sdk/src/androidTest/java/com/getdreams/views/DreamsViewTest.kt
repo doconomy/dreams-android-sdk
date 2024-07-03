@@ -7,7 +7,6 @@
 package com.getdreams.views
 
 import android.content.Intent
-import android.text.Html
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
@@ -18,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.getdreams.Credentials
 import com.getdreams.Dreams
+import com.getdreams.LaunchConfig
 import com.getdreams.R
 import com.getdreams.Result
 import com.getdreams.TestActivity
@@ -37,10 +37,10 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import okio.Buffer
+import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.anything
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.not
-import org.hamcrest.Matchers.anything
-import org.hamcrest.Matchers.allOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,9 +66,11 @@ class DreamsViewTest {
                 "/users/verify_token?location=fake_location" -> MockResponse()
                     .setResponseCode(302)
                     .addHeader("Location", server.url("/index").toString())
+
                 "/index" -> MockResponse()
                     .setResponseCode(200)
                     .setBody(Buffer().readFrom(getInputStreamFromAssets("index.html")))
+
                 else -> MockResponse().setResponseCode(404)
             }
         }
@@ -102,7 +104,7 @@ class DreamsViewTest {
             dreamsView.launch(
                 credentials = Credentials("id token"),
                 locale = Locale.CANADA_FRENCH,
-                location = "fake_location",
+                launchConfig = LaunchConfig(location = "fake_location"),
                 onCompletion = onLaunchCompletion
             )
             dreamsView.registerEventListener { event ->
@@ -112,6 +114,7 @@ class DreamsViewTest {
                             latch.countDown()
                         }
                     }
+
                     else -> {
                     }
                 }
@@ -163,6 +166,7 @@ class DreamsViewTest {
                             latch.countDown()
                         }
                     }
+
                     else -> {
                     }
                 }
@@ -367,9 +371,11 @@ class DreamsViewTest {
                 when (event) {
                     is Event.Telemetry -> {
                         if ("content_loaded" == event.name) {
-                            dreamsView.update(mapOf(
-                                "header" to "updatedValue"
-                            ))
+                            dreamsView.update(
+                                mapOf(
+                                    "header" to "updatedValue"
+                                )
+                            )
                             GlobalScope.launch {
                                 delay(250)
                                 latch.countDown()

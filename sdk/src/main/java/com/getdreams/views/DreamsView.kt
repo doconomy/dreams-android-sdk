@@ -22,6 +22,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import com.getdreams.Credentials
 import com.getdreams.Dreams
+import com.getdreams.LaunchConfig
 import com.getdreams.R
 import com.getdreams.Result
 import com.getdreams.Result.Companion.failure
@@ -121,6 +122,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             }
         }
         webView.webViewClient = object : WebViewClient() {
+
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 headers?.let { headers ->
                     return try {
@@ -140,9 +142,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             .build()
                         val response: Response = httpClient.newCall(modifiedRequest).execute()
                         // provide response in web format
+                        val contentType = response.body?.contentType()
+                        val mimeType = contentType?.let {
+                            it.type + it.subtype.takeIf { sub -> sub.isNotEmpty() }?.let { sub -> "/$sub" }
+                        } ?: "text/html"
                         return WebResourceResponse(
-                            response.body?.contentType()?.toString(),
-                            response.header("content-encoding", "utf-8"),
+                            mimeType,
+                            contentType?.parameter("charset") ?: "utf-8",
                             response.body?.byteStream()
                         )
                     } catch (e: java.lang.Exception) {
@@ -246,13 +252,19 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private fun verifyTokenRequest(
         uri: Uri,
         jsonBody: JSONObject,
-        location: String?,
+        launchConfig: LaunchConfig,
     ): Result<InitResponse, LaunchError> {
         val uriBuilder = uri.buildUpon()
             .appendPath("users")
             .appendPath("verify_token")
-        if (!location.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("location", location)
+        if (!launchConfig.location.isNullOrEmpty()) {
+            uriBuilder.appendQueryParameter("location", launchConfig.location)
+        }
+        if (!launchConfig.theme.isNullOrEmpty()) {
+            uriBuilder.appendQueryParameter("theme", launchConfig.theme)
+        }
+        if (!launchConfig.timezone.isNullOrEmpty()) {
+            uriBuilder.appendQueryParameter("timezone", launchConfig.timezone)
         }
 
         val url = URL(uriBuilder.build().toString())
@@ -322,7 +334,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         clientId: String,
         idToken: String,
         localeIdentifier: String,
-        location: String?,
+        launchConfig: LaunchConfig,
     ): Result<String, LaunchError> {
         val jsonBody = JSONObject()
             .put("client_id", clientId)
@@ -332,7 +344,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             verifyTokenRequest(
                 Dreams.instance.baseUri,
                 jsonBody,
-                location,
+                launchConfig,
             )
         }
         return when (result) {
@@ -367,37 +379,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         credentials: Credentials,
         locale: Locale,
         headers: Map<String, String>?,
+        launchConfig: LaunchConfig,
         onCompletion: OnLaunchCompletion
     ) {
         val languageTag = locale.toLanguageTag()
 
         GlobalScope.launch {
-            when (val result =
-                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location = null)) {
-                is Result.Success -> {
-                    withContext(Dispatchers.Main) {
-                        webView.loadUrlWithOptionalHeaders(result.value, headers)
-                    }
-                    onCompletion.onResult(success(Unit))
-                }
-                is Result.Failure -> {
-                    onCompletion.onResult(failure(result.error))
-                }
-            }
-        }
-    }
-
-    override fun launch(
-        credentials: Credentials,
-        locale: Locale,
-        headers: Map<String, String>?,
-        location: String,
-        onCompletion: OnLaunchCompletion
-    ) {
-        val languageTag = locale.toLanguageTag()
-
-        GlobalScope.launch {
-            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location)) {
+            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, launchConfig)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
                         webView.loadUrlWithOptionalHeaders(result.value, headers)
