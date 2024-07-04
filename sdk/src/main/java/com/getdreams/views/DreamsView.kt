@@ -15,11 +15,11 @@ import android.util.AttributeSet
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
-import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import com.acsbendi.requestinspectorwebview.RequestInspectorWebViewClient
+import com.acsbendi.requestinspectorwebview.WebViewRequest
 import com.getdreams.Credentials
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
@@ -36,9 +36,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.CookieJar
 import okhttp3.Headers
+import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
@@ -82,6 +87,21 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
     private var headers: Map<String, String>? = null
 
+    private class WebkitCookieManager(private val cookieManager: CookieManager) : CookieJar {
+
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            cookies.forEach { cookie ->
+                cookieManager.setCookie(url.toString(), cookie.toString())
+            }
+        }
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> =
+            when (val cookies = cookieManager.getCookie(url.toString())) {
+                null -> emptyList()
+                else -> cookies.split("; ").mapNotNull { Cookie.parse(url, it) }
+            }
+    }
+
     /**
      * Add and setup the web view.
      */
@@ -121,23 +141,32 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 }
             }
         }
-        webView.webViewClient = object : WebViewClient() {
+        webView.webViewClient = object : RequestInspectorWebViewClient(webView) {
 
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+            override fun shouldInterceptRequest(view: WebView, webViewRequest: WebViewRequest): WebResourceResponse? {
                 headers?.let { headers ->
                     return try {
-                        val url = request.url.toString()
-                        val httpClient = OkHttpClient()
+                        val url = webViewRequest.url
+                        val cookieManager = CookieManager.getInstance()
+                        val httpClient = OkHttpClient.Builder()
+                            .cookieJar(WebkitCookieManager(cookieManager))
+                            .build()
                         // build headers
                         val headersBuilder = Headers.Builder()
-                        request.requestHeaders.forEach { headersBuilder.add(it.key, it.value) }
+                        webViewRequest.headers.forEach { headersBuilder.add(it.key, it.value) }
                         headers.forEach {
                             headersBuilder.removeAll(it.key)
                             headersBuilder.add(it.key, it.value)
                         }
+                        val mediaType =
+                            if (webViewRequest.body.isNotEmpty()) "application/json; utf-8".toMediaType() else null
                         // build new request
                         val modifiedRequest: Request = Request.Builder()
                             .url(url.trim())
+                            .method(
+                                webViewRequest.method,
+                                webViewRequest.body.takeIf { it.isNotEmpty() }?.toRequestBody(mediaType)
+                            )
                             .headers(headersBuilder.build())
                             .build()
                         val response: Response = httpClient.newCall(modifiedRequest).execute()
@@ -299,12 +328,15 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             )
                         )
                     }
+
                     in okCodesStart..299 -> {
                         success(InitResponse(getURL().toString(), headerFields["Set-Cookie"]?.filterNotNull()))
                     }
+
                     422 -> {
                         failure(LaunchError.InvalidCredentials(message = "Invalid token", cause = null))
                     }
+
                     in errorCodesStart..499, HTTP_INTERNAL_ERROR -> {
                         failure(
                             LaunchError.HttpError(
@@ -314,6 +346,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             )
                         )
                     }
+
                     else -> failure(
                         LaunchError.HttpError(
                             responseCode,
@@ -361,6 +394,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                     return@with success(url)
                 }
             }
+
             is Result.Failure -> {
                 failure(result.error)
             }
@@ -385,13 +419,15 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         val languageTag = locale.toLanguageTag()
 
         GlobalScope.launch {
-            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, launchConfig)) {
+            when (val result =
+                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, launchConfig)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
                         webView.loadUrlWithOptionalHeaders(result.value, headers)
                     }
                     onCompletion.onResult(success(Unit))
                 }
+
                 is Result.Failure -> {
                     onCompletion.onResult(failure(result.error))
                 }
