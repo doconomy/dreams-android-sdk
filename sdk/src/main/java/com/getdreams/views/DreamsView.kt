@@ -281,6 +281,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private fun verifyTokenRequest(
         uri: Uri,
         jsonBody: JSONObject,
+        headers: Map<String, String>?,
         launchConfig: LaunchConfig,
     ): Result<InitResponse, LaunchError> {
         val uriBuilder = uri.buildUpon()
@@ -307,6 +308,9 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; utf-8")
             setRequestProperty("Accept", "application/json")
+            headers?.forEach {
+                setRequestProperty(it.key, it.value)
+            }
             doOutput = true
             doInput = false
             instanceFollowRedirects = false
@@ -367,6 +371,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         clientId: String,
         idToken: String,
         localeIdentifier: String,
+        headers: Map<String, String>?,
         launchConfig: LaunchConfig,
     ): Result<String, LaunchError> {
         val jsonBody = JSONObject()
@@ -377,6 +382,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             verifyTokenRequest(
                 Dreams.instance.baseUri,
                 jsonBody,
+                headers,
                 launchConfig,
             )
         }
@@ -420,7 +426,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
         GlobalScope.launch {
             when (val result =
-                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, launchConfig)) {
+                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, headers, launchConfig)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
                         webView.loadUrlWithOptionalHeaders(result.value, headers)

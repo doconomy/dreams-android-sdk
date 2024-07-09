@@ -12,7 +12,7 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 30
-        versionName '0.8.0-rc.4'
+        versionName '0.8.0-rc.5'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -50,7 +50,7 @@ dependencies {
 
     // dependencies to intercept webview headers
     implementation 'com.squareup.okhttp3:okhttp:4.9.0'
-    implementation 'com.github.acsbendi:Android-Request-Inspector-WebView:1.0.6'
+    implementation 'com.getdreams:requestinspectorwebview:1.0.6'
 
     testImplementation 'junit:junit:4.13.1'
     testImplementation 'androidx.test:core:1.4.0'

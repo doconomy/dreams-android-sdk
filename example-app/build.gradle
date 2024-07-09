@@ -35,6 +35,9 @@ android {
 
 dependencies {
     implementation project(path: ':sdk')
+//    implementation 'com.getdreams:android-sdk:0.8.0-rc.4'
+
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
     implementation 'androidx.core:core-ktx:1.6.0'
