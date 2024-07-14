@@ -21,6 +21,7 @@ import android.widget.FrameLayout
 import com.acsbendi.requestinspectorwebview.RequestInspectorWebViewClient
 import com.acsbendi.requestinspectorwebview.WebViewRequest
 import com.getdreams.Credentials
+import com.getdreams.Diagnostics
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
 import com.getdreams.R
@@ -86,6 +87,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private val webView: WebView
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
     private var headers: Map<String, String>? = null
+    private var diagnostics: Diagnostics? = null
 
     private class WebkitCookieManager(private val cookieManager: CookieManager) : CookieJar {
 
@@ -150,6 +152,11 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                         val cookieManager = CookieManager.getInstance()
                         val httpClient = OkHttpClient.Builder()
                             .cookieJar(WebkitCookieManager(cookieManager))
+                            .apply {
+                                diagnostics?.interceptors?.forEach {
+                                    addInterceptor(it)
+                                }
+                            }
                             .build()
                         // build headers
                         val headersBuilder = Headers.Builder()
@@ -548,5 +555,9 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     override fun goBack() {
         webView.goBack()
+    }
+
+    override fun setDiagnostics(diagnostics: Diagnostics?) {
+        this.diagnostics = diagnostics
     }
 }

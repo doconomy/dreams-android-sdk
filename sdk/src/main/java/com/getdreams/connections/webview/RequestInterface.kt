@@ -8,6 +8,7 @@ package com.getdreams.connections.webview
 
 import android.util.Log
 import com.getdreams.Credentials
+import com.getdreams.Diagnostics
 import com.getdreams.LaunchConfig
 import java.util.Locale
 import com.getdreams.Result
@@ -83,4 +84,9 @@ interface RequestInterface {
      * @param location Where to navigate to.
      */
     fun navigateTo(location: String)
+
+    /**
+     * Sets diagnostics setup.
+     */
+    fun setDiagnostics(diagnostics: Diagnostics?)
 }

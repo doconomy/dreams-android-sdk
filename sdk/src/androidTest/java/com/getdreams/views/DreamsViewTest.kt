@@ -16,6 +16,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.getdreams.Credentials
+import com.getdreams.Diagnostics
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
 import com.getdreams.R
@@ -27,11 +28,15 @@ import com.getdreams.test.utils.LaunchCompletionWithLatch
 import com.getdreams.test.utils.getInputStreamFromAssets
 import com.getdreams.test.utils.testResponseEvent
 import io.mockk.confirmVerified
+import io.mockk.every
+import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.Interceptor
+import okhttp3.Response
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -565,5 +570,26 @@ class DreamsViewTest {
         assertEquals("/index", urlLoad.path)
         assertEquals("GET", urlLoad.method)
         server.shutdown()
+    }
+
+
+    @Test
+    fun diagnostics() {
+        class MockedInterceptor : Interceptor {
+            override fun intercept(chain: Interceptor.Chain): Response {
+                return chain.proceed(chain.request())
+            }
+        }
+        val mockedInterceptor = mockk<MockedInterceptor>()
+        every { mockedInterceptor.intercept(any()) } answers { callOriginal() }
+        val diagnostics = Diagnostics(
+            interceptors = listOf(mockedInterceptor)
+        )
+        activityRule.scenario.onActivity {
+            val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
+            dreamsView.setDiagnostics(diagnostics)
+        }
+        launchWithHeaders()
+        verify { mockedInterceptor.intercept(any()) }
     }
 }
