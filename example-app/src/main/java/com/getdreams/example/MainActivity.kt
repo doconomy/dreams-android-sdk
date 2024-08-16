@@ -115,14 +115,14 @@ class MainActivity : AppCompatActivity() {
         val location = intent?.data?.path
         dreamsView.launch(
             credentials = Credentials("token"),
-            locale = Locale.ENGLISH,
+            location = location?.takeIf { it.isNotBlank() },
+            launchConfig = LaunchConfig(
+                locale = Locale.ENGLISH,
+                timezone = "myTimezone",
+                theme = "myTheme",
+            ),
             headers = mapOf(
                 "someHeader" to "someValue"
-            ),
-            launchConfig = LaunchConfig(
-                location = location?.takeIf { it.isNotBlank() },
-                theme = "myTheme",
-                timezone = "myTimezone",
             ),
             onCompletion = onLaunch
         )

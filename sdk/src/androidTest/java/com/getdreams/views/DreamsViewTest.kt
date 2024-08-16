@@ -16,7 +16,6 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.getdreams.Credentials
-import com.getdreams.Diagnostics
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
 import com.getdreams.R
@@ -108,8 +107,8 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("id token"),
-                locale = Locale.CANADA_FRENCH,
-                launchConfig = LaunchConfig(location = "fake_location"),
+                location = "fake_location",
+                launchConfig = LaunchConfig(locale = Locale.CANADA_FRENCH,),
                 onCompletion = onLaunchCompletion
             )
             dreamsView.registerEventListener { event ->
@@ -161,7 +160,6 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("id token"),
-                locale = Locale.CANADA_FRENCH,
                 onCompletion = onLaunchCompletion
             )
             dreamsView.registerEventListener { event ->
@@ -212,7 +210,6 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("fail_auth"),
-                locale = Locale.FRENCH,
                 onCompletion = onLaunchCompletion
             )
         }
@@ -250,7 +247,6 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("token"),
-                locale = Locale.ROOT,
                 headers = mapOf(
                     "header" to "value"
                 )
@@ -294,7 +290,6 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("internal_error"),
-                locale = Locale("sl", "IT", "nedis"),
                 onCompletion = onLaunchCompletion
             )
         }
@@ -330,7 +325,10 @@ class DreamsViewTest {
         val latch = CountDownLatch(1)
         activityRule.scenario.onActivity {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
-            dreamsView.launch(Credentials("token"), Locale.ROOT)
+            dreamsView.launch(
+                credentials = Credentials("token"),
+                launchConfig = LaunchConfig(locale = Locale.ROOT),
+            )
             dreamsView.registerEventListener { event ->
                 when (event) {
                     is Event.Telemetry -> {
@@ -367,7 +365,6 @@ class DreamsViewTest {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
             dreamsView.launch(
                 credentials = Credentials("token"),
-                locale = Locale.ROOT,
                 headers = mapOf(
                     "header" to "value"
                 )
@@ -376,7 +373,7 @@ class DreamsViewTest {
                 when (event) {
                     is Event.Telemetry -> {
                         if ("content_loaded" == event.name) {
-                            dreamsView.update(
+                            dreamsView.updateHeaders(
                                 mapOf(
                                     "header" to "updatedValue"
                                 )
@@ -547,7 +544,7 @@ class DreamsViewTest {
         val latch = CountDownLatch(1)
         activityRule.scenario.onActivity {
             val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
-            dreamsView.launch(Credentials("token"), Locale.ROOT)
+            dreamsView.launch(Credentials("token"))
             dreamsView.registerEventListener { event ->
                 when (event) {
                     is Event.Telemetry -> {
@@ -570,26 +567,5 @@ class DreamsViewTest {
         assertEquals("/index", urlLoad.path)
         assertEquals("GET", urlLoad.method)
         server.shutdown()
-    }
-
-
-    @Test
-    fun diagnostics() {
-        class MockedInterceptor : Interceptor {
-            override fun intercept(chain: Interceptor.Chain): Response {
-                return chain.proceed(chain.request())
-            }
-        }
-        val mockedInterceptor = mockk<MockedInterceptor>()
-        every { mockedInterceptor.intercept(any()) } answers { callOriginal() }
-        val diagnostics = Diagnostics(
-            interceptors = listOf(mockedInterceptor)
-        )
-        activityRule.scenario.onActivity {
-            val dreamsView = it.findViewById<DreamsView>(R.id.dreams)
-            dreamsView.setDiagnostics(diagnostics)
-        }
-        launchWithHeaders()
-        verify { mockedInterceptor.intercept(any()) }
     }
 }

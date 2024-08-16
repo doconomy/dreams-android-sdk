@@ -15,13 +15,12 @@ import android.util.AttributeSet
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.FrameLayout
-import com.acsbendi.requestinspectorwebview.RequestInspectorWebViewClient
-import com.acsbendi.requestinspectorwebview.WebViewRequest
 import com.getdreams.Credentials
-import com.getdreams.Diagnostics
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
 import com.getdreams.R
@@ -37,15 +36,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.Headers
-import okhttp3.HttpUrl
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -86,23 +76,6 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     private val webView: WebView
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
-    private var headers: Map<String, String>? = null
-    private var diagnostics: Diagnostics? = null
-
-    private class WebkitCookieManager(private val cookieManager: CookieManager) : CookieJar {
-
-        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            cookies.forEach { cookie ->
-                cookieManager.setCookie(url.toString(), cookie.toString())
-            }
-        }
-
-        override fun loadForRequest(url: HttpUrl): List<Cookie> =
-            when (val cookies = cookieManager.getCookie(url.toString())) {
-                null -> emptyList()
-                else -> cookies.split("; ").mapNotNull { Cookie.parse(url, it) }
-            }
-    }
 
     /**
      * Add and setup the web view.
@@ -143,54 +116,9 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 }
             }
         }
-        webView.webViewClient = object : RequestInspectorWebViewClient(webView) {
 
-            override fun shouldInterceptRequest(view: WebView, webViewRequest: WebViewRequest): WebResourceResponse? {
-                headers?.let { headers ->
-                    return try {
-                        val url = webViewRequest.url
-                        val cookieManager = CookieManager.getInstance()
-                        val httpClient = OkHttpClient.Builder()
-                            .cookieJar(WebkitCookieManager(cookieManager))
-                            .apply {
-                                diagnostics?.interceptors?.forEach {
-                                    addInterceptor(it)
-                                }
-                            }
-                            .build()
-                        // build headers
-                        val headersBuilder = Headers.Builder()
-                        webViewRequest.headers.forEach { headersBuilder.add(it.key, it.value) }
-                        headers.forEach {
-                            headersBuilder.removeAll(it.key)
-                            headersBuilder.add(it.key, it.value)
-                        }
-                        val mediaType =
-                            if (webViewRequest.body.isNotEmpty()) "application/json; utf-8".toMediaType() else null
-                        // build new request
-                        val modifiedRequest: Request = Request.Builder()
-                            .url(url.trim())
-                            .method(
-                                webViewRequest.method,
-                                webViewRequest.body.takeIf { it.isNotEmpty() }?.toRequestBody(mediaType)
-                            )
-                            .headers(headersBuilder.build())
-                            .build()
-                        val response: Response = httpClient.newCall(modifiedRequest).execute()
-                        // provide response in web format
-                        val contentType = response.body?.contentType()
-                        val mimeType = contentType?.let {
-                            it.type + it.subtype.takeIf { sub -> sub.isNotEmpty() }?.let { sub -> "/$sub" }
-                        } ?: "text/html"
-                        return WebResourceResponse(
-                            mimeType,
-                            contentType?.parameter("charset") ?: "utf-8",
-                            response.body?.byteStream()
-                        )
-                    } catch (e: java.lang.Exception) {
-                        null
-                    }
-                }
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 return null
             }
         }
@@ -289,20 +217,10 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         uri: Uri,
         jsonBody: JSONObject,
         headers: Map<String, String>?,
-        launchConfig: LaunchConfig,
     ): Result<InitResponse, LaunchError> {
         val uriBuilder = uri.buildUpon()
             .appendPath("users")
             .appendPath("verify_token")
-        if (!launchConfig.location.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("location", launchConfig.location)
-        }
-        if (!launchConfig.theme.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("theme", launchConfig.theme)
-        }
-        if (!launchConfig.timezone.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("timezone", launchConfig.timezone)
-        }
 
         val url = URL(uriBuilder.build().toString())
         val connection = try {
@@ -326,8 +244,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         return try {
             with(connection) {
                 outputStream.write(jsonBody.toString().toByteArray())
-                val okCodesStart: Int = HTTP_OK
-                val errorCodesStart: Int = HTTP_BAD_REQUEST
+
                 when (connection.responseCode) {
                     HTTP_MOVED_PERM, HTTP_MOVED_TEMP, HTTP_SEE_OTHER, HTTP_NOT_MODIFIED, 307, 308 -> {
                         getHeaderField("Location")?.let {
@@ -340,7 +257,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                         )
                     }
 
-                    in okCodesStart..299 -> {
+                    in 200..299 -> {
                         success(InitResponse(getURL().toString(), headerFields["Set-Cookie"]?.filterNotNull()))
                     }
 
@@ -348,7 +265,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                         failure(LaunchError.InvalidCredentials(message = "Invalid token", cause = null))
                     }
 
-                    in errorCodesStart..499, HTTP_INTERNAL_ERROR -> {
+                    in 400..499, HTTP_INTERNAL_ERROR -> {
                         failure(
                             LaunchError.HttpError(
                                 responseCode,
@@ -375,22 +292,33 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     private suspend fun initializeWebApp(
-        clientId: String,
-        idToken: String,
-        localeIdentifier: String,
-        headers: Map<String, String>?,
+        credentials: Credentials,
+        location: String?,
         launchConfig: LaunchConfig,
+        headers: Map<String, String>?,
     ): Result<String, LaunchError> {
         val jsonBody = JSONObject()
-            .put("client_id", clientId)
-            .put("token", idToken)
-            .put("locale", localeIdentifier)
+            .put("client_id", Dreams.instance.clientId) // TODO: remove this legacy param?
+            .put("token", credentials.idToken)
+
+        if (location != null) {
+            jsonBody.put("location", location)
+        }
+        if (launchConfig.locale != null) {
+            jsonBody.put("locale", launchConfig.locale.toLanguageTag())
+        }
+        if (!launchConfig.theme.isNullOrEmpty()) {
+            jsonBody.put("theme", launchConfig.theme)
+        }
+        if (!launchConfig.timezone.isNullOrEmpty()) {
+            jsonBody.put("timezone", launchConfig.timezone)
+        }
+
         val result = withContext(Dispatchers.IO) {
             verifyTokenRequest(
                 Dreams.instance.baseUri,
                 jsonBody,
                 headers,
-                launchConfig,
             )
         }
         return when (result) {
@@ -415,7 +343,6 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     private fun WebView.loadUrlWithOptionalHeaders(url: String, headers: Map<String, String>?) {
-        this@DreamsView.headers = headers
         when (headers) {
             null -> loadUrl(url)
             else -> loadUrl(url, headers)
@@ -424,16 +351,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     override fun launch(
         credentials: Credentials,
-        locale: Locale,
-        headers: Map<String, String>?,
+        location: String?,
         launchConfig: LaunchConfig,
+        headers: Map<String, String>?,
         onCompletion: OnLaunchCompletion
     ) {
-        val languageTag = locale.toLanguageTag()
-
         GlobalScope.launch {
-            when (val result =
-                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, headers, launchConfig)) {
+            when (val result =  initializeWebApp(credentials, location, launchConfig, headers)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
                         webView.loadUrlWithOptionalHeaders(result.value, headers)
@@ -448,8 +372,16 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun update(headers: Map<String, String>?) {
-        this.headers = headers
+    override fun updateHeaders(headers: Map<String, String>) {
+        val jsonData = JSONObject()
+        headers.forEach {
+            jsonData.put(it.key, it.value)
+        }
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("setAdditionalHeaders('${jsonData}')") {
+                Log.v("Dreams", "setAdditionalHeaders returned $it")
+            }
+        }
     }
 
     override fun updateLocale(locale: Locale) {
@@ -555,9 +487,5 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     override fun goBack() {
         webView.goBack()
-    }
-
-    override fun setDiagnostics(diagnostics: Diagnostics?) {
-        this.diagnostics = diagnostics
     }
 }

@@ -1,13 +1,15 @@
 package com.getdreams
 
+import java.util.Locale
+
 /**
- * Collection of extra data to be passed during launch procedure.
- * @param location The location that Dreams should navigate to on a successful launch.
- * @param theme Whether sdk should launch/initialize in light/dark mode.
- * @param timezone Timezone to provide to sdk during launch/initialize.
+ * Collection of parameters to be passed to DES during launch procedure.
+ * @param locale The end-user's preferred locale for i18n.
+ * @param timezone The end-user's preferred timezone for datetime formatting.
+ * @param theme Whether DES should be rendered in light or dark mode.
  */
 data class LaunchConfig(
-    val location: String? = null,
-    val theme: String? = null,
+    val locale: Locale? = null,
     val timezone: String? = null,
+    val theme: String? = null,
 )
