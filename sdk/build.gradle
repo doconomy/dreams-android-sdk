@@ -106,11 +106,19 @@ afterEvaluate {
     publishing {
         repositories {
             maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/dreamstechnology/dreams-android-sdk")
+                name = "MavenCentral"
+                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
                 credentials {
-                    username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-                    password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+                    username = project.findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
+                    password = project.findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
+                }
+            }
+            maven {
+                name = "MavenCentralSnapshot"
+                url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+                credentials {
+                    username = project.findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
+                    password = project.findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
                 }
             }
         }
@@ -118,8 +126,8 @@ afterEvaluate {
             release(MavenPublication) {
                 from components.release
 
-                groupId = 'com.getdreams'
-                artifactId = 'android-sdk'
+                groupId = 'io.github.doconomy'
+                artifactId = 'dreams-android-sdk'
                 version = android.defaultConfig.versionName
 
                 artifact androidSourcesJar
