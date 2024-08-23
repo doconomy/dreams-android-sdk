@@ -9,19 +9,12 @@
 
 ## Installation
 
-Register the github maven repository by adding it to your project build.gradle.
+Register the maven repository by adding it to your project build.gradle.
 
 ```groovy
 allprojects {
     repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/getdreams/dreams-android-sdk")
-            credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
-            }
-        }
+        mavenCentral()
     }
 }
 ```
@@ -32,33 +25,6 @@ Add the library to your module dependencies.
 dependencies {
     implementation 'com.getdreams:android-sdk:0.7.0'
 }
-```
-
-If you do not want to use the github repository you can download the package and put it in `<module>/libs`.
-Make sure you include AARs from the libs directory:
-
-```groovy
-dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
-}
-```
-
-### Github Authentication
-
-For detailed docs see [this](https://docs.github.com/en/free-pro-team@latest/packages/using-github-packages-with-your-projects-ecosystem/configuring-gradle-for-use-with-github-packages#authenticating-to-github-packages).
-
-You can save the username and token in your system gradle properties located in `$GRADLE_USER_HOME/gradle.properties`.
-
-```properties
-gpr.user=user
-gpr.key=token
-```
-
-Or you can set the environmental variables:
-
-```shell script
-GITHUB_USERNAME="user"
-GITHUB_TOKEN="token"
 ```
 
 ## Usage
@@ -210,12 +176,20 @@ This will publish aar, html-doc, javadoc, and sources to the local maven.
 To publish to you need to add signing key details when running the publishing task(s).
 
 ```properties
+signing.gnupg.executable=gpg
+signing.gnupg.useLegacyGpg=true
+signing.gnupg.homeDir=/home/<your_user>/.gnupg
+signing.gnupg.optionsFile=/home/<your_user>/.gnupg/gpg.conf
 signing.gnupg.keyName=<key>
 signing.gnupg.passphrase=<pass>
+ossrhUsername=<maven key>
+ossrhPassword=<maven pass>
 ```
 
-To publish a new package to GitHub you can run:
+To publish a new package to Maven Central you can run:
 
 ```shell script
-./gradlew sdk:publishReleasePublicationToGitHubPackagesRepository
+./gradlew sdk:publishReleasePublicationToMavenCentralRepository
+//or
+./gradlew sdk:publishReleasePublicationToMavenCentralSnapshotRepository
 ```
