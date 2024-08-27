@@ -1,9 +1,14 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
-apply plugin: 'org.jetbrains.dokka'
-// apply plugin: 'maven-publish'
-apply plugin: 'signing'
+plugins {
+    id 'com.android.library'
+    id 'kotlin-android'
+    id 'kotlin-android-extensions'
+    id 'org.jetbrains.dokka'
+    id 'signing'
+    id 'com.vanniktech.maven.publish' version '0.29.0'
+}
+
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+import com.vanniktech.maven.publish.SonatypeHost
 
 android {
     compileSdkVersion 30
@@ -12,6 +17,7 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 30
+        versionName '0.8.0-rc.7'
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -99,65 +105,42 @@ task htmlJar(type: Jar, dependsOn: dokkaHtml) {
     from dokkaHtml
 }
 
-afterEvaluate {
-    /*
-    publishing {
-
-        repositories {
-            maven {
-                name = "MavenCentral"
-                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-                credentials {
-                    username = project.findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
-                    password = project.findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
-                }
-            }
-            maven {
-                name = "MavenCentralSnapshot"
-                url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-                credentials {
-                    username = project.findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
-                    password = project.findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
-                }
-            }
-        }
-
-        publications {
-            release(MavenPublication) {
-                from components.release
-
-                groupId = 'io.github.doconomy'
-                artifactId = 'dreams-android-sdk'
-                version = android.defaultConfig.versionName
-
-                artifact androidSourcesJar
-                artifact javadocsJar
-                artifact htmlJar
-
-                pom {
-                    name = 'Dreams Android SDK'
-                    description = ''
-                    url = 'https://dreamstechnology.com/'
-
-                    licenses {
-                        license {
-                            name = 'Mozilla Public License Version 2.0'
-                            url = 'http://mozilla.org/MPL/2.0/'
-                        }
-                    }
-                    scm {
-                        connection = 'scm:git:git://github.com/dreams-android-sdk.git'
-                        developerConnection = 'scm:git:ssh://github.com/dreams-android-sdk.git'
-                        url = 'https://dreamstechnology.com/'
-                    }
-                }
+mavenPublishing {
+    // See: https://vanniktech.github.io/gradle-maven-publish-plugin/what/#android-library-single-variant
+    configure(
+            new AndroidSingleVariantLibrary(
+                "release", // variant to publish
+                true,      // publish sources jar
+                true       // publish javadoc jar
+        )
+    )
+    publishToMavenCentral(
+            SonatypeHost.CENTRAL_PORTAL,
+            true // also *release* the published artifacts
+    )
+    signAllPublications()
+    coordinates("io.github.doconomy", "dreams-android-sdk", android.defaultConfig.versionName)
+    pom {
+        name = "Dreams Android SDK"
+        description = ""
+        inceptionYear = "2020"
+        url = "https://github.com/doconomy/dreams-android-sdk"
+        licenses {
+            license {
+                name = 'Mozilla Public License Version 2.0'
+                url = 'http://mozilla.org/MPL/2.0/'
             }
         }
-    }*/
-    /*
-    signing {
-        useGpgCmd()
-        sign publishing.publications.release
+        developers {
+            developer {
+                organization = 'Doconomy'
+                organizationUrl = 'https://www.doconomy.com/'
+            }
+        }
+        scm {
+            url = "https://github.com/doconomy/dreams-android-sdk"
+            connection = "scm:git:git://github.com/doconomy/dreams-android-sdk.git"
+            developerConnection = "scm:git:ssh://git@github.com:doconomy/dreams-android-sdk.git"
+        }
     }
-     */
 }
