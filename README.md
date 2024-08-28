@@ -173,23 +173,20 @@ To publish the library to your local maven, simply run:
 
 This will publish aar, html-doc, javadoc, and sources to the local maven.
 
-To publish to you need to add signing key details when running the publishing task(s).
+To publish to Maven Central you need signing key details and credentials in gradle properties.
+In your local `~/.gradle/gradle.properties`, outside version control, *not to be committed*:
 
 ```properties
-signing.gnupg.executable=gpg
-signing.gnupg.useLegacyGpg=true
-signing.gnupg.homeDir=/home/<your_user>/.gnupg
-signing.gnupg.optionsFile=/home/<your_user>/.gnupg/gpg.conf
-signing.gnupg.keyName=<key>
-signing.gnupg.passphrase=<pass>
-ossrhUsername=<maven key>
-ossrhPassword=<maven pass>
+signing.keyId=
+signing.password=
+signing.secretKeyRingFile=
+
+mavenCentralUsername=
+mavenCentralPassword=
 ```
 
-To publish a new package to Maven Central you can run:
+To publish a new package to Maven Central you can then run:
 
 ```shell script
-./gradlew sdk:publishReleasePublicationToMavenCentralRepository
-//or
-./gradlew sdk:publishReleasePublicationToMavenCentralSnapshotRepository
+./gradlew sdk:publishToMavenCentral
 ```
