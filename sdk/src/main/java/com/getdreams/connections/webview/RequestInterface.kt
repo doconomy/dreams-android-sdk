@@ -8,6 +8,7 @@ package com.getdreams.connections.webview
 
 import android.util.Log
 import com.getdreams.Credentials
+import com.getdreams.LaunchConfig
 import java.util.Locale
 import com.getdreams.Result
 
@@ -29,31 +30,16 @@ interface RequestInterface {
      * Launch Dreams.
      *
      * @param credentials Credentials used to authenticate the user.
-     * @param locale The locale to use in Dreams.
+     * @param location Optional path to navigate to after successful authentication (if other than default).
+     * @param launchConfig Optional launch configuration with end-user settings.
+     * @param headers Optional HTTP headers to be sent with first request.
      * @param onCompletion Called when [launch] has completed.
      */
     fun launch(
         credentials: Credentials,
-        locale: Locale,
-        onCompletion: OnLaunchCompletion = OnLaunchCompletion {
-            if (it is Result.Failure) {
-                Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
-            }
-        }
-    )
-
-    /**
-     * Launch Dreams.
-     *
-     * @param credentials Credentials used to authenticate the user.
-     * @param locale The locale to use in Dreams.
-     * @param location The location that Dreams should navigate to on a successful launch.
-     * @param onCompletion Called when [launch] has completed.
-     */
-    fun launch(
-        credentials: Credentials,
-        locale: Locale,
-        location: String,
+        location: String? = null,
+        launchConfig: LaunchConfig = LaunchConfig(),
+        headers: Map<String, String>? = null,
         onCompletion: OnLaunchCompletion = OnLaunchCompletion {
             if (it is Result.Failure) {
                 Log.e("Dreams", "Failed to launch due to ${it.error.message}", it.error.cause)
@@ -67,6 +53,12 @@ interface RequestInterface {
      * @param locale The new locale.
      */
     fun updateLocale(locale: Locale)
+
+    /**
+     * This method can be called at all times after the WebView is presented, the Request interface will send the headers with every request.
+     * @param headers Set optional HTTP headers
+     */
+    fun updateHeaders(headers: Map<String, String>)
 
     /**
      * Update the id token.

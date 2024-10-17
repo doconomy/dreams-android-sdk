@@ -4,12 +4,13 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package com.getdreams
+package com.getdreams.androidtest
 
 import android.app.Activity
 import android.os.Bundle
 import android.view.ViewGroup.LayoutParams
 import android.widget.FrameLayout
+import com.getdreams.R
 import com.getdreams.views.DreamsView
 
 class TestActivity : Activity() {

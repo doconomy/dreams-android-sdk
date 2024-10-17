@@ -22,6 +22,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import com.getdreams.Credentials
 import com.getdreams.Dreams
+import com.getdreams.LaunchConfig
 import com.getdreams.R
 import com.getdreams.Result
 import com.getdreams.Result.Companion.failure
@@ -115,6 +116,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                 }
             }
         }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 return null
@@ -167,10 +169,10 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             override fun onAccountRequested(requestData: String) {
                 try {
                     val json = JSONTokener(requestData).nextValue() as? JSONObject?
-                    val dreamJson = json?.getJSONObject("dream") as JSONObject
+                    val dreamJson = json?.getJSONObject("dream")
 
                     val requestId = json?.getString("requestId")
-                    if (requestId != null) {
+                    if (requestId != null && dreamJson != null) {
                         this@DreamsView.onResponse(Event.AccountRequested(requestId, dreamJson))
                     }
                 } catch (e: JSONException) {
@@ -214,14 +216,11 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private fun verifyTokenRequest(
         uri: Uri,
         jsonBody: JSONObject,
-        location: String?,
+        headers: Map<String, String>?,
     ): Result<InitResponse, LaunchError> {
         val uriBuilder = uri.buildUpon()
             .appendPath("users")
             .appendPath("verify_token")
-        if (!location.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("location", location)
-        }
 
         val url = URL(uriBuilder.build().toString())
         val connection = try {
@@ -234,6 +233,9 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; utf-8")
             setRequestProperty("Accept", "application/json")
+            headers?.forEach {
+                setRequestProperty(it.key, it.value)
+            }
             doOutput = true
             doInput = false
             instanceFollowRedirects = false
@@ -242,6 +244,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         return try {
             with(connection) {
                 outputStream.write(jsonBody.toString().toByteArray())
+
                 when (connection.responseCode) {
                     HTTP_MOVED_PERM, HTTP_MOVED_TEMP, HTTP_SEE_OTHER, HTTP_NOT_MODIFIED, 307, 308 -> {
                         getHeaderField("Location")?.let {
@@ -253,13 +256,16 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             )
                         )
                     }
-                    in HTTP_OK..299 -> {
+
+                    in 200..299 -> {
                         success(InitResponse(getURL().toString(), headerFields["Set-Cookie"]?.filterNotNull()))
                     }
+
                     422 -> {
                         failure(LaunchError.InvalidCredentials(message = "Invalid token", cause = null))
                     }
-                    in HTTP_BAD_REQUEST..499, HTTP_INTERNAL_ERROR -> {
+
+                    in 400..499, HTTP_INTERNAL_ERROR -> {
                         failure(
                             LaunchError.HttpError(
                                 responseCode,
@@ -268,6 +274,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                             )
                         )
                     }
+
                     else -> failure(
                         LaunchError.HttpError(
                             responseCode,
@@ -285,20 +292,33 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     private suspend fun initializeWebApp(
-        clientId: String,
-        idToken: String,
-        localeIdentifier: String,
+        credentials: Credentials,
         location: String?,
+        launchConfig: LaunchConfig,
+        headers: Map<String, String>?,
     ): Result<String, LaunchError> {
         val jsonBody = JSONObject()
-            .put("client_id", clientId)
-            .put("token", idToken)
-            .put("locale", localeIdentifier)
+            .put("client_id", Dreams.instance.clientId) // TODO: remove this legacy param?
+            .put("token", credentials.idToken)
+
+        if (location != null) {
+            jsonBody.put("location", location)
+        }
+        if (launchConfig.locale != null) {
+            jsonBody.put("locale", launchConfig.locale.toLanguageTag())
+        }
+        if (!launchConfig.theme.isNullOrEmpty()) {
+            jsonBody.put("theme", launchConfig.theme)
+        }
+        if (!launchConfig.timezone.isNullOrEmpty()) {
+            jsonBody.put("timezone", launchConfig.timezone)
+        }
+
         val result = withContext(Dispatchers.IO) {
             verifyTokenRequest(
                 Dreams.instance.baseUri,
                 jsonBody,
-                location,
+                headers,
             )
         }
         return when (result) {
@@ -315,24 +335,36 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                     return@with success(url)
                 }
             }
+
             is Result.Failure -> {
                 failure(result.error)
             }
         }
     }
 
-    override fun launch(credentials: Credentials, locale: Locale, onCompletion: OnLaunchCompletion) {
-        val languageTag = locale.toLanguageTag()
+    private fun WebView.loadUrlWithOptionalHeaders(url: String, headers: Map<String, String>?) {
+        when (headers) {
+            null -> loadUrl(url)
+            else -> loadUrl(url, headers)
+        }
+    }
 
+    override fun launch(
+        credentials: Credentials,
+        location: String?,
+        launchConfig: LaunchConfig,
+        headers: Map<String, String>?,
+        onCompletion: OnLaunchCompletion
+    ) {
         GlobalScope.launch {
-            when (val result =
-                initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location = null)) {
+            when (val result =  initializeWebApp(credentials, location, launchConfig, headers)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
-                        webView.loadUrl(result.value)
+                        webView.loadUrlWithOptionalHeaders(result.value, headers)
                     }
                     onCompletion.onResult(success(Unit))
                 }
+
                 is Result.Failure -> {
                     onCompletion.onResult(failure(result.error))
                 }
@@ -340,20 +372,14 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         }
     }
 
-    override fun launch(credentials: Credentials, locale: Locale, location: String, onCompletion: OnLaunchCompletion) {
-        val languageTag = locale.toLanguageTag()
-
-        GlobalScope.launch {
-            when (val result = initializeWebApp(Dreams.instance.clientId, credentials.idToken, languageTag, location)) {
-                is Result.Success -> {
-                    withContext(Dispatchers.Main) {
-                        webView.loadUrl(result.value)
-                    }
-                    onCompletion.onResult(success(Unit))
-                }
-                is Result.Failure -> {
-                    onCompletion.onResult(failure(result.error))
-                }
+    override fun updateHeaders(headers: Map<String, String>) {
+        val jsonData = JSONObject()
+        headers.forEach {
+            jsonData.put(it.key, it.value)
+        }
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("setAdditionalHeaders('${jsonData}')") {
+                Log.v("Dreams", "setAdditionalHeaders returned $it")
             }
         }
     }
