@@ -10,7 +10,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:paddingTop="?attr/actionBarSize"
     tools:context=".MainActivity">
+    <!-- Test edge to edge behind status bar: remove paddingTop from above, disable action bar in in styles.xml -->
 
     <com.getdreams.views.DreamsView
         android:id="@+id/dreams"
