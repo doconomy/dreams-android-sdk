@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.getdreams.Credentials
+import com.getdreams.LaunchConfig
 import com.getdreams.Result
 import com.getdreams.connections.EventListener
 import com.getdreams.connections.webview.LaunchError
@@ -41,12 +42,14 @@ class MainActivity : AppCompatActivity() {
                     dreamsView.updateCredentials(requestId = event.requestId, credentials)
                 }
             }
+
             is Event.Telemetry -> {
                 // Convert from JSONObject to Map
                 val params = event.payload?.keys()?.asSequence()?.associate { it to event.payload?.get(it) }
                 // Pass the event on
                 FakeBackend.sendAnalyticsEvent(event.name, params)
             }
+
             is Event.AccountProvisionRequested -> {
                 // Provision an account to the user
                 GlobalScope.launch {
@@ -65,6 +68,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+
             is Event.ExitRequested -> {
                 // We should exit the Dreams context
                 this@MainActivity.finish()
@@ -89,6 +93,7 @@ class MainActivity : AppCompatActivity() {
                     Log.v("ExampleApp", "Launch was successful")
                     dialog.dismiss()
                 }
+
                 is Result.Failure -> {
                     // Something went wrong, handle the error
                     Log.w("ExampleApp", "Launch failed with ${result.error.message}", result.error.cause)
@@ -108,11 +113,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         val location = intent?.data?.path
-        if (location.isNullOrBlank()) {
-            dreamsView.launch(Credentials("token"), Locale.ENGLISH, onLaunch)
-        } else {
-            dreamsView.launch(Credentials("token"), Locale.ENGLISH, location, onLaunch)
-        }
+        dreamsView.launch(
+            credentials = Credentials("token"),
+            location = location?.takeIf { it.isNotBlank() },
+            launchConfig = LaunchConfig(
+                locale = Locale.ENGLISH,
+                timezone = "myTimezone",
+                theme = "myTheme",
+            ),
+            headers = mapOf(
+                "someHeader" to "someValue"
+            ),
+            onCompletion = onLaunch
+        )
 
         dreamsView.registerEventListener(listener)
     }
