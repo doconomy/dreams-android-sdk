@@ -5,7 +5,7 @@
   -->
 
 <resources>
-    <color name="dreamsWebAppBackground">#123456</color>
+    <color name="dreamsWebAppBackground">#0e100f</color>
     <declare-styleable name="DreamsView">
         <attr name="android:focusableInTouchMode" />
         <attr name="android:fitsSystemWindows" />
