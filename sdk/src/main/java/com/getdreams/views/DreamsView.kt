@@ -202,6 +202,20 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                     Log.w("Dreams", "Unable to parse share json", e)
                 }
             }
+
+            @JavascriptInterface
+            override fun onTransferConsentRequested(requestData: String) {
+                try {
+                    val json = JSONTokener(requestData).nextValue() as? JSONObject?
+                    val requestId = json?.getString("requestId")
+                    val consentId = json?.getString("consentId")
+                    if (requestId != null && consentId != null) {
+                        this@DreamsView.onResponse(Event.TransferConsentRequested(requestId, consentId))
+                    }
+                } catch (e: JSONException) {
+                    Log.w("Dreams", "Unable to parse request data for onTransferConsentRequested", e)
+                }
+            }
         }, "JSBridge")
     }
 
@@ -420,6 +434,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             .put("requestId", requestId)
         GlobalScope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountRequestedSucceeded('${jsonData}')") {
+                Log.v("Dreams", "accountRequestedSucceeded returned $it")
             }
         }
     }
@@ -430,6 +445,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             .put("reason", reason)
         GlobalScope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountRequestedFailed('${jsonData}')") {
+                Log.v("Dreams", "accountRequestedFailed returned $it")
             }
         }
     }
@@ -487,5 +503,25 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     override fun goBack() {
         webView.goBack()
+    }
+
+    override fun transferConsentSucceeded(requestId: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("transferConsentSucceeded('${jsonData}')") {
+                Log.v("Dreams", "transferConsentSucceeded returned $it")
+            }
+        }
+    }
+
+    override fun transferConsentCancelled(requestId: String) {
+        val jsonData: JSONObject = JSONObject()
+            .put("requestId", requestId)
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            webView.evaluateJavascript("transferConsentCancelled('${jsonData}')") {
+                Log.v("Dreams", "transferConsentCancelled returned $it")
+            }
+        }
     }
 }

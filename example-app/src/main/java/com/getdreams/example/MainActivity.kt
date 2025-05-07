@@ -73,6 +73,35 @@ class MainActivity : AppCompatActivity() {
                 // We should exit the Dreams context
                 this@MainActivity.finish()
             }
+
+            is Event.AccountRequested -> {
+                // Handle account requested, perhaps by calling accountRequestSucceeded or accountRequestFailed
+                Log.d("ExampleApp", "AccountRequested event received: $event")
+                // For demonstration, let's assume it succeeded.
+                // In a real app, you would have actual logic here.
+                dreamsView.accountRequestSucceeded(event.requestId)
+            }
+
+            is Event.TransferConsentRequested -> {
+                Log.d("ExampleApp", "TransferConsentRequested event received: requestId=${event.requestId}, consentId=${event.consentId}")
+                // Example: Show a dialog to the user to ask for consent.
+                // For this demo, we'll just log and simulate a success after a short delay.
+                // In a real app, you would get user input here.
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Transfer Consent")
+                    .setMessage("Do you consent to this transfer? (consentId: ${event.consentId})")
+                    .setPositiveButton("Yes") { _, _ ->
+                        Log.d("ExampleApp", "User consented. Calling dreamsView.transferConsentSucceeded(${event.requestId})")
+                        dreamsView.transferConsentSucceeded(event.requestId)
+                        Toast.makeText(this@MainActivity, "Transfer Consent Succeeded (sent to WebView)", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("No") { _, _ ->
+                        Log.d("ExampleApp", "User cancelled. Calling dreamsView.transferConsentCancelled(${event.requestId})")
+                        dreamsView.transferConsentCancelled(event.requestId)
+                        Toast.makeText(this@MainActivity, "Transfer Consent Cancelled (sent to WebView)", Toast.LENGTH_SHORT).show()
+                    }
+                    .show()
+            }
         }
     }
 
