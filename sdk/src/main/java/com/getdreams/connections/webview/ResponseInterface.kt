@@ -41,4 +41,11 @@ internal interface ResponseInterface {
      * The user requests share dialog to be prompted.
      */
     fun onShare(data: String)
+
+    /**
+     * A transfer consent is requested from the user.
+     *
+     * @param requestData A JSON-string with the request data, including requestId and consentId.
+     */
+    fun onTransferConsentRequested(requestData: String)
 }

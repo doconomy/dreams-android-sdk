@@ -42,4 +42,11 @@ sealed class Event {
      */
     data class AccountRequested(override val requestId: String, val dream: JSONObject) :  RequestData, Event()
 
+    /**
+     * Event informing that consent for a transfer is requested.
+     * @param requestId The unique identifier for this request.
+     * @param consentId Identifier for the consent being requested.
+     */
+    data class TransferConsentRequested(override val requestId: String, val consentId: String) : RequestData, Event()
+
 }

@@ -78,6 +78,20 @@ interface RequestInterface {
     fun accountRequestFailed(requestId: String, reason: String)
 
     /**
+     * Inform the web app that the user consented to the transfer.
+     *
+     * @param requestId The request id of the event that triggered the transfer consent request.
+     */
+    fun transferConsentSucceeded(requestId: String)
+
+    /**
+     * Inform the web app that the user cancelled or denied the transfer consent.
+     *
+     * @param requestId The request id of the event that triggered the transfer consent request.
+     */
+    fun transferConsentCancelled(requestId: String)
+
+    /**
      * Instruct the web app to navigate to a [location].
      *
      * @param location Where to navigate to.
