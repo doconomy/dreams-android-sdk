@@ -127,6 +127,22 @@ dreamsView.registerEventListener { event ->
 }
 ```
 
+### Edge to Edge
+
+Dreams view will avoid system insets including keyboard by default and color them with default background color of the web app.
+To match custom color configuration set via web portal, supply it to the view via xml attribute `android:background`.
+
+```xml
+<com.getdreams.views.DreamsView
+    android:id="@+id/dreams"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/darker_gray"
+    />
+```
+
+If the inset avoidance is not desired for whatever reason, it can be disabled via xml attribute `android:fitsSystemWindows="false"`.
+
 ## Documentation
 
 You can generate documentation by running the relevant Dokka task.

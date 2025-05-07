@@ -20,6 +20,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
 import com.getdreams.Credentials
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
@@ -83,10 +84,15 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private fun init(context: Context, attrs: AttributeSet?, defStyleAttr: Int = 0, defStyleRes: Int = 0) {
         val attributes = context.obtainStyledAttributes(attrs, R.styleable.DreamsView, defStyleAttr, defStyleRes)
         val focusableInTouchMode = attributes.getBoolean(R.styleable.DreamsView_android_focusableInTouchMode, true)
+        val bgColor = attributes.getColor(R.styleable.DreamsView_android_background, ContextCompat.getColor(context, R.color.dreamsWebAppBackground))
+        fitsSystemWindows = attributes.getBoolean(R.styleable.DreamsView_android_fitsSystemWindows, true)
         attributes.recycle()
 
         isFocusableInTouchMode = focusableInTouchMode
         webView.isFocusableInTouchMode = focusableInTouchMode
+
+        setBackgroundColor(bgColor)
+        webView.setBackgroundColor(bgColor)
 
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         webView.apply {
