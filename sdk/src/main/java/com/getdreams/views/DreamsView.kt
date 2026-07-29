@@ -32,8 +32,10 @@ import com.getdreams.connections.webview.LaunchError
 import com.getdreams.connections.webview.RequestInterface.OnLaunchCompletion
 import com.getdreams.connections.webview.ResponseInterface
 import com.getdreams.events.Event
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
@@ -76,6 +78,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     private val webView: WebView
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     /**
      * Add and setup the web view.
@@ -356,7 +359,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         headers: Map<String, String>?,
         onCompletion: OnLaunchCompletion
     ) {
-        GlobalScope.launch {
+        scope.launch {
             when (val result =  initializeWebApp(credentials, location, launchConfig, headers)) {
                 is Result.Success -> {
                     withContext(Dispatchers.Main) {
@@ -377,7 +380,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         headers.forEach {
             jsonData.put(it.key, it.value)
         }
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("setAdditionalHeaders('${jsonData}')") {
                 Log.v("Dreams", "setAdditionalHeaders returned $it")
             }
@@ -387,7 +390,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     override fun updateLocale(locale: Locale) {
         val jsonData: JSONObject = JSONObject()
             .put("locale", locale.toLanguageTag())
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("updateLocale('${jsonData}')") {
                 Log.v("Dreams", "updateLocale returned $it")
             }
@@ -398,7 +401,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         val jsonData: JSONObject = JSONObject()
             .put("requestId", requestId)
             .put("idToken", credentials.idToken)
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("updateIdToken('${jsonData}')") {
                 Log.v("Dreams", "updateIdToken returned $it")
             }
@@ -408,7 +411,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     override fun accountProvisionInitiated(requestId: String) {
         val jsonData: JSONObject = JSONObject()
             .put("requestId", requestId)
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountProvisionInitiated('${jsonData}')") {
                 Log.v("Dreams", "accountProvisioned returned $it")
             }
@@ -418,7 +421,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     override fun accountRequestSucceeded(requestId: String) {
         val jsonData: JSONObject = JSONObject()
             .put("requestId", requestId)
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountRequestedSucceeded('${jsonData}')") {
             }
         }
@@ -428,7 +431,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         val jsonData: JSONObject = JSONObject()
             .put("requestId", requestId)
             .put("reason", reason)
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("accountRequestedFailed('${jsonData}')") {
             }
         }
@@ -437,7 +440,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     override fun navigateTo(location: String) {
         val jsonData: JSONObject = JSONObject()
             .put("location", location)
-        GlobalScope.launch(Dispatchers.Main.immediate) {
+        scope.launch(Dispatchers.Main.immediate) {
             webView.evaluateJavascript("navigateTo('${jsonData}')") {
                 Log.v("Dreams", "navigateTo returned $it")
             }
@@ -479,6 +482,11 @@ class DreamsView : FrameLayout, DreamsViewInterface {
 
     internal fun onResponse(type: Event) {
         responseListeners.forEach { it.onEvent(type) }
+    }
+
+    override fun onDetachedFromWindow() {
+        scope.cancel()
+        super.onDetachedFromWindow()
     }
 
     override fun canGoBack(): Boolean {
