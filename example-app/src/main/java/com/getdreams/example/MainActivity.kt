@@ -10,8 +10,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.getdreams.Credentials
 import com.getdreams.LaunchConfig
 import com.getdreams.Result
@@ -20,8 +25,6 @@ import com.getdreams.connections.webview.LaunchError
 import com.getdreams.connections.webview.RequestInterface
 import com.getdreams.events.Event
 import com.getdreams.views.DreamsView
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -37,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         when (event) {
             is Event.CredentialsExpired -> {
                 // Renew the token
-                GlobalScope.launch {
+                lifecycleScope.launch {
                     val credentials = Credentials(idToken = FakeBackend.refreshIdToken())
                     dreamsView.updateCredentials(requestId = event.requestId, credentials)
                 }
@@ -52,19 +55,17 @@ class MainActivity : AppCompatActivity() {
 
             is Event.AccountProvisionRequested -> {
                 // Provision an account to the user
-                GlobalScope.launch {
-                    if (FakeBackend.provisionAccountAsync(this@MainActivity).await()) {
+                lifecycleScope.launch {
+                    if (FakeBackend.provisionAccountAsync(this@MainActivity)) {
                         // Tell Dreams the account was provisioned
                         dreamsView.accountProvisionInitiated(requestId = event.requestId)
                     } else {
                         // Something went wrong with provisioning the account
-                        GlobalScope.launch(Dispatchers.Main) {
-                            Toast.makeText(
-                                this@MainActivity,
-                                "Could not provision account",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Could not provision account",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -77,8 +78,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        ViewCompat.setOnApplyWindowInsetsListener(dreamsView) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (dreamsView.canGoBack()) {
+                    dreamsView.goBack()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
 
         // Show that we are loading content
         val dialog = AlertDialog.Builder(this)
@@ -104,10 +123,8 @@ class MainActivity : AppCompatActivity() {
                         is LaunchError.UnexpectedError -> e.message
                     }
 
-                    GlobalScope.launch(Dispatchers.Main) {
-                        dialog.setMessage(message)
-                        dialog.setCancelable(true)
-                    }
+                    dialog.setMessage(message)
+                    dialog.setCancelable(true)
                 }
             }
         }
@@ -143,14 +160,6 @@ class MainActivity : AppCompatActivity() {
         val location = intent.data?.path
         if (!location.isNullOrBlank()) {
             dreamsView.navigateTo(location)
-        }
-    }
-
-    override fun onBackPressed() {
-        if (dreamsView.canGoBack()) {
-            dreamsView.goBack()
-        } else {
-            super.onBackPressed()
         }
     }
 }

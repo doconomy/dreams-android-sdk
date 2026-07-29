@@ -9,25 +9,19 @@ package com.getdreams.example
 import android.content.Context
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 object FakeBackend {
     /**
      * Pretend to do a async refresh of a token
      */
     suspend fun refreshIdToken(): String {
-        return GlobalScope.async {
-            // Pretend to negotiate a refresh
-            delay(250)
-            return@async "a fresh token"
-        }.await()
+        delay(250)
+        return "a fresh token"
     }
 
     /**
@@ -38,25 +32,20 @@ object FakeBackend {
     }
 
     /**
-     * Pretend to provision an account, if the deferred value is true an account was provisioned.
+     * Pretend to provision an account. Returns true if provisioned, false if cancelled.
      */
-    fun provisionAccountAsync(context: Context): Deferred<Boolean> {
-        return GlobalScope.async {
-            val result = Job()
-            GlobalScope.launch(Dispatchers.Main) {
-                AlertDialog.Builder(context)
-                    .setMessage("Provision Account?")
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
-                        result.complete()
-                    }
-                    .setNegativeButton(android.R.string.cancel) { dialog, _ ->
-                        result.cancel()
-                        dialog.cancel()
-                    }
-                    .show()
-            }
-            result.join()
-            result.isCompleted && !result.isCancelled
+    suspend fun provisionAccountAsync(context: Context): Boolean = withContext(Dispatchers.Main) {
+        suspendCancellableCoroutine { continuation ->
+            AlertDialog.Builder(context)
+                .setMessage("Provision Account?")
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    continuation.resume(true)
+                }
+                .setNegativeButton(android.R.string.cancel) { dialog, _ ->
+                    dialog.cancel()
+                    continuation.resume(false)
+                }
+                .show()
         }
     }
 }
