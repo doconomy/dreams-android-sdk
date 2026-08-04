@@ -104,14 +104,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
                     val cache = File(context.cacheDir, "dreams")
                     try {
                         cache.mkdirs()
+                        this.javaClass.getMethod("setAppCachePath", String::class.java).invoke(this, cache.absolutePath)
+                        this.javaClass.getMethod("setAppCacheEnabled", Boolean::class.javaPrimitiveType).invoke(this, true)
                     } catch (e: SecurityException) {
                         Log.e("Dreams", "Failed to create directories in cache", e)
+                    } catch (e: Exception) {
+                        Log.w("Dreams", "setAppCache not available", e)
                     }
-
-                    @Suppress("DEPRECATION")
-                    setAppCachePath(cache.absolutePath)
-                    @Suppress("DEPRECATION")
-                    setAppCacheEnabled(true)
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
