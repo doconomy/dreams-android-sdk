@@ -5,7 +5,66 @@
 ## Requirements
 
 * Minimum Android SDK version: 21
-* Java source and target compatibility version: 1.8
+* Compile/target SDK version: 36
+* Java source and target compatibility version: 17
+
+## Breaking changes in 0.9.0
+
+`DreamsView` now handles window insets and back navigation itself, so that every
+integration is correct on Android 15+ without per-app workarounds. If your app
+already implements these, **remove your version** or you will get double handling.
+
+**1. System bar insets are applied by the SDK**
+
+`DreamsView` sets its own padding from `systemBars` insets. Remove any inset
+listener you attach to the Dreams view:
+
+```kotlin
+// Remove this — the SDK does it now
+ViewCompat.setOnApplyWindowInsetsListener(dreamsView) { view, insets ->
+    val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+    view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+    insets
+}
+```
+
+Your Activity is still responsible for opting into edge-to-edge itself
+(`WindowCompat.setDecorFitsSystemWindows(window, false)`), which is mandatory
+on API 35+ regardless.
+
+**2. Back navigation is handled by the SDK**
+
+`DreamsView` registers its own `OnBackPressedCallback` while attached, enabled
+only when the WebView has history. Remove your own callback:
+
+```kotlin
+// Remove this — the SDK does it now
+onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+    override fun handleOnBackPressed() {
+        if (dreamsView.canGoBack()) dreamsView.goBack() else { /* ... */ }
+    }
+})
+```
+
+This is what makes Predictive Back render the correct preview: the callback is
+disabled when there is no history, so the system shows the return-to-launcher
+animation instead of an in-app one. Keeping a permanently-enabled callback of
+your own defeats that.
+
+`canGoBack()` and `goBack()` remain public if you need manual control.
+
+**3. Keyboard insets are handled on API 35+**
+
+> **Bug fix** — resolves the reported issue where the soft keyboard slid up but
+> the WebView content underneath did not move, leaving input fields hidden on
+> Android 15+.
+
+On API 35+, `adjustResize` is ignored because edge-to-edge is mandatory, so the
+SDK now drives WebView padding from the IME animation instead. Keep
+`adjustResize` in your manifest — it is still required on API 21–34.
+
+Set `android:enableOnBackInvokedCallback="true"` on your `<application>` to opt
+into Predictive Back.
 
 ## Installation
 
@@ -23,7 +82,7 @@ Add the library to your module dependencies.
 
 ```groovy
 dependencies {
-    implementation 'com.getdreams:android-sdk:0.7.0'
+    implementation 'com.getdreams:android-sdk:0.9.0'
 }
 ```
 
@@ -52,7 +111,7 @@ To handle possible errors during launch you can send a `OnLaunchCompletion` to `
 
 ```kotlin
 val dreamsView: DreamsView = findViewById<DreamsView>(R.id.dreams)
-dreamsView.launch(Dreams.Credentials(idToken = "user token"), Locale.ENGLISH) { result ->
+dreamsView.launch(Credentials(idToken = "user token"), launchConfig = LaunchConfig(locale = Locale.ENGLISH)) { result ->
     when (result) {
         is Result.Success -> {
             // Dreams was launched successfully
@@ -74,8 +133,9 @@ dreamsView.launch(Dreams.Credentials(idToken = "user token"), Locale.ENGLISH) { 
 }
 ```
 
-Note as the dreams view can trigger showing the IME, e.g. a soft keyboard, it needs to be resized so the IME does not cover part of the dreams view.
-The easiest way to achieve this is to flag the activity as `adjustResize`.
+The dreams view can trigger showing the IME, e.g. a soft keyboard, so it needs to be
+resized to avoid the IME covering part of it. On API 35+ the SDK handles this itself.
+On API 21–34 you still need to flag the activity as `adjustResize`.
 
 ```xml
 <activity
@@ -89,7 +149,7 @@ If you want to launch dreams at a specific location you need to send a `location
 
 ```kotlin
 val dreamsView: DreamsView = findViewById<DreamsView>(R.id.dreams)
-dreamsView.launch(Dreams.Credentials(idToken = "user token"), Locale.ENGLISH, location = "/path/to/location") { _ -> }
+dreamsView.launch(Credentials(idToken = "user token"), location = "/path/to/location", launchConfig = LaunchConfig(locale = Locale.ENGLISH)) { _ -> }
 ```
 
 When the dreams view is already active the `DreamsView.navigateTo()` function can be used instead.
