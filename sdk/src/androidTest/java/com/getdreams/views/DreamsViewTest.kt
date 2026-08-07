@@ -20,7 +20,7 @@ import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
 import com.getdreams.R
 import com.getdreams.Result
-import com.getdreams.TestActivity
+import com.getdreams.androidtest.TestActivity
 import com.getdreams.connections.webview.LaunchError
 import com.getdreams.events.Event
 import com.getdreams.test.utils.LaunchCompletionWithLatch
@@ -127,11 +127,12 @@ class DreamsViewTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS))
 
         val initPost = server.takeRequest()
-        assertEquals("/users/verify_token?location=fake_location", initPost.path)
+        assertEquals("/users/verify_token", initPost.path)
         assertEquals("POST", initPost.method)
         assertEquals("application/json; utf-8", initPost.getHeader("Content-Type"))
         assertEquals("application/json", initPost.getHeader("Accept"))
-        val expectedBody = """{"client_id":"clientId","token":"id token","locale":"fr-CA"}"""
+        val expectedBody =
+            """{"client_id":"clientId","token":"id token","location":"fake_location","locale":"fr-CA"}"""
         assertEquals(expectedBody, initPost.body.readUtf8())
 
         assertTrue(launchCompletion.latch.await(5, TimeUnit.SECONDS))
@@ -182,7 +183,7 @@ class DreamsViewTest {
         assertEquals("POST", initPost.method)
         assertEquals("application/json; utf-8", initPost.getHeader("Content-Type"))
         assertEquals("application/json", initPost.getHeader("Accept"))
-        val expectedBody = """{"client_id":"clientId","token":"id token","locale":"fr-CA"}"""
+        val expectedBody = """{"client_id":"clientId","token":"id token"}"""
         assertEquals(expectedBody, initPost.body.readUtf8())
 
         assertTrue(launchCompletion.latch.await(5, TimeUnit.SECONDS))
@@ -219,7 +220,7 @@ class DreamsViewTest {
         assertEquals("POST", initPost.method)
         assertEquals("application/json; utf-8", initPost.getHeader("Content-Type"))
         assertEquals("application/json", initPost.getHeader("Accept"))
-        val expectedBody = """{"client_id":"clientId","token":"fail_auth","locale":"fr"}"""
+        val expectedBody = """{"client_id":"clientId","token":"fail_auth"}"""
         assertEquals(expectedBody, initPost.body.readUtf8())
 
         assertTrue(launchCompletion.latch.await(5, TimeUnit.SECONDS))
@@ -261,6 +262,8 @@ class DreamsViewTest {
                             }
                         }
                     }
+
+                    else -> {}
                 }
             }
         }
@@ -299,7 +302,7 @@ class DreamsViewTest {
         assertEquals("POST", initPost.method)
         assertEquals("application/json; utf-8", initPost.getHeader("Content-Type"))
         assertEquals("application/json", initPost.getHeader("Accept"))
-        val expectedBody = """{"client_id":"clientId","token":"internal_error","locale":"sl-IT-nedis"}"""
+        val expectedBody = """{"client_id":"clientId","token":"internal_error"}"""
         assertEquals(expectedBody, initPost.body.readUtf8())
 
         assertTrue(launchCompletion.latch.await(5, TimeUnit.SECONDS))
@@ -340,6 +343,8 @@ class DreamsViewTest {
                             }
                         }
                     }
+
+                    else -> {}
                 }
             }
         }
@@ -384,6 +389,8 @@ class DreamsViewTest {
                             }
                         }
                     }
+
+                    else -> {}
                 }
             }
         }
@@ -556,6 +563,8 @@ class DreamsViewTest {
                             }
                         }
                     }
+
+                    else -> {}
                 }
             }
         }

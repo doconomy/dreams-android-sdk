@@ -14,8 +14,9 @@ import androidx.test.espresso.web.webdriver.Locator
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.getdreams.Credentials
+import com.getdreams.LaunchConfig
 import com.getdreams.R
-import com.getdreams.TestActivity
+import com.getdreams.androidtest.TestActivity
 import com.getdreams.events.Event
 import com.getdreams.views.DreamsView
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,7 @@ inline fun ActivityScenarioRule<TestActivity>.testResponseEvent(
     val contentLatch = CountDownLatch(1)
     scenario.onActivity { activity ->
         val dreamsView = activity.findViewById<DreamsView>(R.id.dreams)
-        dreamsView.launch(Credentials("token"), Locale.ROOT)
+        dreamsView.launch(Credentials("token"), launchConfig = LaunchConfig(locale = Locale.ROOT))
         dreamsView.registerEventListener { event ->
             when (event) {
                 is Event.Telemetry -> {
