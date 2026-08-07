@@ -20,7 +20,10 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getdreams.Credentials
 import com.getdreams.Dreams
@@ -82,6 +85,20 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     private val responseListeners = CopyOnWriteArrayList<EventListener>()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private val backCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            webView.goBack()
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        findViewTreeOnBackPressedDispatcherOwner()
+            ?.onBackPressedDispatcher
+            ?.addCallback(backCallback)
+        backCallback.isEnabled = webView.canGoBack()
+    }
+
     /**
      * Add and setup the web view.
      */
@@ -99,6 +116,28 @@ class DreamsView : FrameLayout, DreamsViewInterface {
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            ViewCompat.setWindowInsetsAnimationCallback(
+                webView,
+                object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_STOP) {
+                    override fun onProgress(
+                        insets: WindowInsetsCompat,
+                        runningAnimations: List<WindowInsetsAnimationCompat>
+                    ): WindowInsetsCompat {
+                        val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+                        val navInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+                        webView.setPadding(
+                            0,
+                            0,
+                            0,
+                            (imeInsets.bottom - navInsets.bottom).coerceAtLeast(0)
+                        )
+                        return insets
+                    }
+                }
+            )
         }
 
         webView.apply {
@@ -131,6 +170,11 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 return null
+            }
+
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                backCallback.isEnabled = view.canGoBack()
             }
         }
 
@@ -493,6 +537,7 @@ class DreamsView : FrameLayout, DreamsViewInterface {
     }
 
     override fun onDetachedFromWindow() {
+        backCallback.remove()
         scope.cancel()
         super.onDetachedFromWindow()
     }
