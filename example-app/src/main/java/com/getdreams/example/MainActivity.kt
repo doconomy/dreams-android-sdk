@@ -74,6 +74,14 @@ class MainActivity : AppCompatActivity() {
                 // We should exit the Dreams context
                 this@MainActivity.finish()
             }
+
+            is Event.Share -> {
+                Log.v("ExampleApp", "Share event received")
+            }
+
+            is Event.AccountRequested -> {
+                Log.v("ExampleApp", "AccountRequested: requestId=${event.requestId}")
+            }
         }
     }
 
@@ -153,9 +161,8 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent == null) return
         setIntent(intent)
         val location = intent.data?.path
         if (!location.isNullOrBlank()) {
