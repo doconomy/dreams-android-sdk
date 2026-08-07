@@ -20,6 +20,8 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.getdreams.Credentials
 import com.getdreams.Dreams
 import com.getdreams.LaunchConfig
@@ -92,6 +94,13 @@ class DreamsView : FrameLayout, DreamsViewInterface {
         webView.isFocusableInTouchMode = focusableInTouchMode
 
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+
+        ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+
         webView.apply {
             settings.apply {
                 @SuppressLint("SetJavaScriptEnabled")
