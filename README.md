@@ -8,7 +8,7 @@
 * Compile/target SDK version: 36
 * Java source and target compatibility version: 17
 
-## Breaking changes in 0.9.0
+## Breaking changes in 1.0.0
 
 `DreamsView` now handles window insets and back navigation itself, so that every
 integration is correct on Android 15+ without per-app workarounds. If your app
@@ -82,7 +82,7 @@ Add the library to your module dependencies.
 
 ```groovy
 dependencies {
-    implementation 'com.getdreams:android-sdk:0.9.0'
+    implementation 'io.github.doconomy:dreams-android-sdk:1.0.0'
 }
 ```
 
@@ -250,3 +250,7 @@ To publish a new package to Maven Central you can then run:
 ```shell script
 ./gradlew sdk:publishToMavenCentral
 ```
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
