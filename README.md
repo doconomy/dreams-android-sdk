@@ -51,6 +51,25 @@ disabled when there is no history, so the system shows the return-to-launcher
 animation instead of an in-app one. Keeping a permanently-enabled callback of
 your own defeats that.
 
+**If your callback also did something else, keep that part.** A common case is
+hosting Dreams in a Fragment, where the same callback both navigated the WebView
+and left the Dreams screen. Only the WebView half should go:
+
+```kotlin
+private val onBackPressed = object : OnBackPressedCallback(false) {
+    override fun handleOnBackPressed() {
+        // Removed — the SDK handles this now:
+        // if (dreams.canGoBack()) { dreams.goBack() } else { ... }
+
+        // Kept — still your responsibility:
+        findNavController().navigateUp()
+    }
+}
+```
+
+The SDK's callback is enabled only while the WebView has history, so it takes
+the press first and yours runs once there is nowhere left to go back to.
+
 `canGoBack()` and `goBack()` remain public if you need manual control.
 
 **3. Keyboard insets are handled on API 35+**
